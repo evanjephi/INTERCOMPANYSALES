@@ -3,11 +3,13 @@
  * @NScriptType WorkflowActionScript
  */
 
-define(['N/record', 'N/search', 'N/log'], function (record, search, log) {
+define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
     function onAction(context) {
+        const rt = runtime.getCurrentScript()
+       
         const nr = context.newRecord
         const typeselector = {
-            1: 1,2: 2, 7: 3, 9: 14,15: 12, 14: 9,13: 8
+            1: 1, 2: 2, 7: 3, 9: 14, 15: 12, 14: 9, 13: 8
         }
         const crpo = record.create({
             type: 'purchaseorder',
@@ -46,8 +48,34 @@ define(['N/record', 'N/search', 'N/log'], function (record, search, log) {
             fieldId: 'class',
             value: typeselector[nr.getValue('ordertype')]
         })
-        
 
+        const len = nr.getLineCount({ sublistId: 'item' })
+        for (let i = 0; i < len; i++) {
+            const rate = nr.getSublistValue({
+                sublistId: 'item',
+                fieldId: 'rate',
+                line: i
+            }) * .4
+            crpo.selectNewLine({ sublistId: 'item' })
+            crpo.setCurrentSublistValue({
+                sublistId: 'item',
+                fieldId: 'item',
+                value: nr.getSublistValue({ sublistId: 'item', fieldId: 'item', line: i })
+            })
+            crpo.setCurrentSublistValue({
+                sublistId: 'item',
+                fieldId: 'quantity',
+                value: nr.getSublistValue({ sublistId: 'item', fieldId: 'quantity', line: i })
+            })
+            crpo.setCurrentSublistValue({
+                sublistId: 'item',
+                fieldId: 'rate',
+                value: rate
+            })
+            crpo.commitLine({ sublistId: 'item' })
+        }
+        const crpoId = crpo.save()
+        log.debug('Execution reached end of scripit', 'POID: ' + crpoId + ', Remaining Usage: ' + rt.getRemainingUsage())
     }
     return {
         onAction: onAction
