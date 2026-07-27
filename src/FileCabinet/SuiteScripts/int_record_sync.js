@@ -9,7 +9,7 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
         const nr = context.newRecord
         const transaction = currentTransaction(nr)
         try {
-            intercompanyPurchaseOrder(nr, transaction)
+            intercompanyIntiator(nr, transaction)
         } catch (e) {
             log.error({
                 title: `Failed to create purchase order for ${nr.getText('tranid')}`,
@@ -18,7 +18,7 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
             return
         }
         try {
-
+            intercompanyOrder(nr, transaction)
         } catch (e) {
             log.error({
                 title: `Failed to create sales order for ${crpoId}`,
@@ -42,7 +42,7 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
         onAction: onAction
     }
 
-    function intercompanyPurchaseOrder(nr, rec) {
+    function intercompanyIntiator(nr, rec) {
         const typeselector = {
             1: 1, 2: 2, 7: 3, 9: 14, 15: 12, 14: 9, 13: 8
         }
@@ -115,6 +115,10 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
         })
         var crpoId = crpo.save()
         log.debug('Execution reached end of scripit', 'POID: ' + crpoId + ', Remaining Usage: ' + rt.getRemainingUsage())
+    }
+
+    function intercompanyOrder(nr, trans) {
+        
     }
 
 })
