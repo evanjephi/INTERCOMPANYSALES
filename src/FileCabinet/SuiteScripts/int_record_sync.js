@@ -4,7 +4,7 @@
  */
 
 define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
-    function onAction(context) {
+    function internalTrade(context) {
         const rt = runtime.getCurrentScript()
         const nr = context.newRecord
         const transaction = currentTransaction(nr)
@@ -26,7 +26,6 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
             })
             return
         }
-
     }
 
     const currentTransaction = (nr) => ({
@@ -39,7 +38,7 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
     })
 
     return {
-        onAction: onAction
+        onAction: internalTrade
     }
 
     function intercompanyIntiator(nr, rec) {
@@ -48,7 +47,7 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
         }
         const crpo = record.create({
             type: 'purchaseorder',
-            isDynamic: true
+            isDynamic: false
         })
 
         crpo.setValue({
@@ -118,7 +117,15 @@ define(['N/record', 'N/runtime', 'N/log'], function (record, runtime, log) {
     }
 
     function intercompanyOrder(nr, trans) {
-        
+         const crso = record.create({
+             type: 'salesorder',
+             isDynamic: false
+         })
+
+         crso.setValue({
+            fieldId: 'entity',
+            value: 6458
+         })
     }
 
 })
