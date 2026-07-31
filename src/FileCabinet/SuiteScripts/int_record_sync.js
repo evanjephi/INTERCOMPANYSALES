@@ -18,7 +18,7 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             return
         }
         try {
-            intercompanyOrder(nr, transaction)
+            //intercompanyOrder(nr, transaction)
         } catch (e) {
             log.error({
                 title: `Failed to create sales order for ${crpoId}`,
@@ -28,30 +28,52 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
         }
     }
 
-    const currentTransaction = (nr) => ({
-        requester: nr.getText('custbody_project_manager') ? nr.getText('custbody_project_manager') : nr.getText('salesrep'),
-        memo: `Project Name: ${nr.getText('custbody_viso_project')} 1. Please put your delivery date on the invoice. 2. Please put our PO number on the invoice. 3. Each Carton must be labeled with: PO number, Part number, Project name, Quantity and Carton number. 4. Please refer to drawings for more details. 5. Please sign the work back schedule.`,
-        project: nr.getValue('custbody_viso_project'),
-        location: nr.getValue('location'),
-        terms: nr.getValue('terms'),
-        orderType: nr.getValue('ordertype'),
-        icproject: nr.getText('custbody_viso_project'),
-        items: (crpo, multiplier = nr.getValue('custbody_intercomp_resale_pct')) => {
-            const sublistId = 'item'
-            const len = nr.getLineCount({ sublistId })
-            for (let i = 0; i < len; i++) {
-                const originalRate = nr.getSublistValue({ sublistId, fieldId: 'rate', line: i })
-                const itemId = nr.getSublistValue({ sublistId, fieldId: 'item', line: i })
-                const qty = nr.getSublistValue({ sublistId, fieldId: 'quantity', line: i })
+    const currentTransaction = (nr) => {
+        let itemType, itemId
+        return {
+            requester: nr.getText('custbody_project_manager') ? nr.getText('custbody_project_manager') : nr.getText('salesrep'),
+            memo: `Project Name: ${nr.getText('custbody_viso_project')} 1. Please put your delivery date on the invoice. 2. Please put our PO number on the invoice. 3. Each Carton must be labeled with: PO number, Part number, Project name, Quantity and Carton number. 4. Please refer to drawings for more details. 5. Please sign the work back schedule.`,
+            project: nr.getValue('custbody_viso_project'),
+            location: nr.getValue('location'),
+            terms: nr.getValue('terms'),
+            orderType: nr.getValue('ordertype'),
+            icproject: nr.getText('custbody_viso_project'),
+            items: (crpo, multiplier) => {
+                const sublistId = 'item'
+                const len = nr.getLineCount({ sublistId })
+                for (let i = 0; i < len; i++) {
+                    const originalRate = nr.getSublistValue({ 
+                        sublistId, 
+                        fieldId: 'rate', 
+                        line: i 
+                    })
+                    itemId = nr.getSublistValue({ 
+                        sublistId, 
+                        fieldId: 'item', 
+                        line: i 
+                    })
+                    itemType = nr.getSublistValue({ 
+                        sublistId, 
+                        fieldId: 'itemtype', 
+                        line: i 
+                    })
+                    const qty = nr.getSublistValue({ 
+                        sublistId, 
+                        fieldId: 'quantity', 
+                        line: i 
+                    })
 
-                crpo.selectNewLine({ sublistId });
-                crpo.setCurrentSublistValue({ sublistId, fieldId: 'item', value: itemId })
-                crpo.setCurrentSublistValue({ sublistId, fieldId: 'quantity', value: qty })
-                crpo.setCurrentSublistValue({ sublistId, fieldId: 'rate', value: originalRate * multiplier })
-                crpo.commitLine({ sublistId })
-            }
+                    crpo.selectNewLine({ sublistId });
+                    crpo.setCurrentSublistValue({ sublistId, fieldId: 'item', value: itemId })
+                    crpo.setCurrentSublistValue({ sublistId, fieldId: 'quantity', value: qty })
+                    crpo.setCurrentSublistValue({ sublistId, fieldId: 'rate', value: originalRate * multiplier })
+                    crpo.commitLine({ sublistId })
+                }
+            },
+            itemType: itemType,
+            item: itemId
         }
-    })
+    }
 
     return {
         onAction: internalTrade
@@ -63,7 +85,7 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
         }
         const crpo = record.create({
             type: 'purchaseorder',
-            isDynamic: false
+            isDynamic: true
         })
 
         crpo.setValue({
@@ -98,38 +120,23 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             fieldId: 'terms',
             value: rec.terms
         })
-        rec.items(crpo)
-        // const len = nr.getLineCount({ sublistId: 'item' })
-        // for (let i = 0; i < len; i++) {
-        //     const rate = nr.getSublistValue({
-        //         sublistId: 'item',
-        //         fieldId: 'rate',
-        //         line: i
-        //     }) * .4
-        //     crpo.selectNewLine({ sublistId: 'item' })
-        //     crpo.setCurrentSublistValue({
-        //         sublistId: 'item',
-        //         fieldId: 'item',
-        //         value: nr.getSublistValue({ sublistId: 'item', fieldId: 'item', line: i })
-        //     })
-        //     crpo.setCurrentSublistValue({
-        //         sublistId: 'item',
-        //         fieldId: 'quantity',
-        //         value: nr.getSublistValue({ sublistId: 'item', fieldId: 'quantity', line: i })
-        //     })
-        //     crpo.setCurrentSublistValue({
-        //         sublistId: 'item',
-        //         fieldId: 'rate',
-        //         value: rate
-        //     })
-        //     crpo.commitLine({ sublistId: 'item' })
-        // }
+        rec.items(crpo, nr.getValue('custbody_intercomp_resale_pct'))
 
         crpo.setValue({
             fieldId: 'class',
             value: typeselector[rec.orderType]
         })
         var crpoId = crpo.save()
+        const itemtype = rec.itemType
+        if (itemtype === 'Assembly') {
+            record.submitFields({
+                type: 'assemblyitem',
+                id: rec.item,
+                values: {
+                    'subsidiary': ['3', '2']
+                }
+            })
+        }
         log.debug('Execution reached end of scripit', 'POID: ' + crpoId)
         return crpoId
     }
@@ -165,7 +172,7 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
         const crsoId = crso.save({
             ignoreMandatoryFields: true
         })
-        log.debug('Execution reached end of scripit', 'SOID: ' + crsoId )
+        log.debug('Execution reached end of scripit', 'SOID: ' + crsoId)
 
 
     }
