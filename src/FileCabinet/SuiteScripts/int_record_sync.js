@@ -8,8 +8,9 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
         const rt = runtime.getCurrentScript()
         const nr = context.newRecord
         const transaction = currentTransaction(nr)
+        let crpoId
         try {
-            intercompanyIntiator(nr, transaction)
+            crpoId = intercompanyIntiator(nr, transaction)
         } catch (e) {
             log.error({
                 title: `Failed to create purchase order for ${nr.getText('tranid')}`,
@@ -18,14 +19,15 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             return
         }
         try {
-            //intercompanyOrder(nr, transaction)
+            intercompanyOrder(nr, transaction, crpoId)
         } catch (e) {
             log.error({
-                title: `Failed to create sales order for ${crpoId}`,
+                title: `Failed to create sales order for ${nr.getText('tranid')}`,
                 details: e.message || String(e)
             })
             return
         }
+        log.debug('Remaining limit', rt.getRemainingUsage())
     }
 
     const currentTransaction = (nr) => {
@@ -38,31 +40,41 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             terms: nr.getValue('terms'),
             orderType: nr.getValue('ordertype'),
             icproject: nr.getText('custbody_viso_project'),
-            items: (crpo, multiplier) => {
+            resalePct: !nr.getValue('custbody_intercomp_resale_pct') ? .4 : nr.getValue('custbody_intercomp_resale_pct'),
+            items: (crpo, multiplier, submitIntercompanyOrder = false) => {
                 const sublistId = 'item'
                 const len = nr.getLineCount({ sublistId })
                 for (let i = 0; i < len; i++) {
-                    const originalRate = nr.getSublistValue({ 
-                        sublistId, 
-                        fieldId: 'rate', 
-                        line: i 
+                    const originalRate = nr.getSublistValue({
+                        sublistId,
+                        fieldId: 'rate',
+                        line: i
                     })
-                    itemId = nr.getSublistValue({ 
-                        sublistId, 
-                        fieldId: 'item', 
-                        line: i 
+                    itemId = nr.getSublistValue({
+                        sublistId,
+                        fieldId: 'item',
+                        line: i
                     })
-                    itemType = nr.getSublistValue({ 
-                        sublistId, 
-                        fieldId: 'itemtype', 
-                        line: i 
+                    itemType = nr.getSublistValue({
+                        sublistId,
+                        fieldId: 'itemtype',
+                        line: i
                     })
-                    const qty = nr.getSublistValue({ 
-                        sublistId, 
-                        fieldId: 'quantity', 
-                        line: i 
+                    const qty = nr.getSublistValue({
+                        sublistId,
+                        fieldId: 'quantity',
+                        line: i
                     })
-
+                    if (itemType === 'Assembly' && submitIntercompanyOrder) {
+                        record.submitFields({
+                            type: 'assemblyitem',
+                            id: itemId,
+                            values: {
+                                location: '',
+                                subsidiary: ['3', '2']
+                            }
+                        })
+                    }
                     crpo.selectNewLine({ sublistId });
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'item', value: itemId })
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'quantity', value: qty })
@@ -78,76 +90,69 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
     return {
         onAction: internalTrade
     }
-
+    
     function intercompanyIntiator(nr, rec) {
         const typeselector = {
             1: 1, 2: 2, 7: 3, 9: 14, 15: 12, 14: 9, 13: 8
         }
-        const crpo = record.create({
-            type: 'purchaseorder',
-            isDynamic: true
-        })
-
-        crpo.setValue({
-            fieldId: 'entity',
-            value: 10594
-        })
-        crpo.setValue({
-            fieldId: 'custbody_ship_ref_so',
-            value: nr.id
-        })
-        crpo.setValue({
-            fieldId: 'memo',
-            value: rec.memo
-        })
-        crpo.setValue({
-            fieldId: 'duedate',
-            value: new Date(new Date(nr.getValue('shipdate')).setDate(new Date(nr.getValue('shipdate')).getDate() - 7))
-        })
-        crpo.setValue({
-            fieldId: 'custbody_viso_project',
-            value: rec.project
-        })
-        crpo.setValue({
-            fieldId: 'custbodyrequestedby',
-            value: rec.requester
-        })
-        crpo.setValue({
-            fieldId: 'location',
-            value: rec.location
-        })
-        crpo.setValue({
-            fieldId: 'terms',
-            value: rec.terms
-        })
-        rec.items(crpo, nr.getValue('custbody_intercomp_resale_pct'))
-
-        crpo.setValue({
-            fieldId: 'class',
-            value: typeselector[rec.orderType]
-        })
-        var crpoId = crpo.save()
-        const itemtype = rec.itemType
-        if (itemtype === 'Assembly') {
-            record.submitFields({
-                type: 'assemblyitem',
-                id: rec.item,
-                values: {
-                    'subsidiary': ['3', '2']
-                }
+        const isCreated = nr.getValue('custbody_linked_po')
+        if (!isCreated) {
+            const crpo = record.create({
+                type: 'purchaseorder',
+                isDynamic: true
             })
+
+            crpo.setValue({
+                fieldId: 'entity',
+                value: 10594
+            })
+            crpo.setValue({
+                fieldId: 'custbody_ship_ref_so',
+                value: nr.id
+            })
+            crpo.setValue({
+                fieldId: 'memo',
+                value: rec.memo
+            })
+            crpo.setValue({
+                fieldId: 'duedate',
+                value: new Date(new Date(nr.getValue('shipdate')).setDate(new Date(nr.getValue('shipdate')).getDate() - 7))
+            })
+            crpo.setValue({
+                fieldId: 'custbody_viso_project',
+                value: rec.project
+            })
+            crpo.setValue({
+                fieldId: 'custbodyrequestedby',
+                value: rec.requester
+            })
+            crpo.setValue({
+                fieldId: 'location',
+                value: rec.location
+            })
+            crpo.setValue({
+                fieldId: 'terms',
+                value: rec.terms
+            })
+            rec.items(crpo, rec.resalePct, true)
+
+            crpo.setValue({
+                fieldId: 'class',
+                value: typeselector[rec.orderType]
+            })
+            var crpoId = crpo.save()
+            log.debug('Execution reached end of scripit', ' POID: ' + crpoId)
+            return crpoId
+        } else {
+
         }
-        log.debug('Execution reached end of scripit', 'POID: ' + crpoId)
-        return crpoId
     }
 
-    function intercompanyOrder(nr, trans) {
+    function intercompanyOrder(nr, trans, otherref) {
         const crso = record.create({
             type: 'salesorder',
-            isDynamic: false
+            isDynamic: true
         })
-        const venpo = intercompanyIntiator()
-        const otherref = venpo.crpoId
         const ponum = search.lookupFields({
             type: 'purchaseorder',
             id: otherref,
@@ -169,13 +174,11 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             fieldId: 'custbody12',
             value: trans.icproject
         })
+        trans.items(crso, trans.resalePct, false)
         const crsoId = crso.save({
             ignoreMandatoryFields: true
         })
         log.debug('Execution reached end of scripit', 'SOID: ' + crsoId)
-
-
     }
-
 })
 
