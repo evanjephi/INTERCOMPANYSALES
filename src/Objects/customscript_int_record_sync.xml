@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflowactionscript scriptid="customscript_int_rec_sync">
+    <name>int_record_sync</name>
+    <scriptfile>[/SuiteScripts/int_record_sync.js]</scriptfile>
+    
+    <loglevel>DEBUG</loglevel>
+    <scriptdeployments>
+        <scriptdeployment scriptid="customdeploy_int_rec_sync">
+            <title>int_record_sync Deployment</title>
+            <status>RELEASED</status>
+        </scriptdeployment>
+    </scriptdeployments>
+</workflowactionscript>
