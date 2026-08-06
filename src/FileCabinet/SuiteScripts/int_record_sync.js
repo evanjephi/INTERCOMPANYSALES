@@ -4,10 +4,6 @@
  */
 
 define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime, log, search) {
-    const ORDER_TYPE_CLASS = {
-        1: 1, 2: 2, 7: 3, 9: 14, 15: 12, 14: 9, 13: 8
-    }
-
     function getDueDate(nr) {
         return new Date(new Date(nr.getValue('shipdate')).setDate(new Date(nr.getValue('shipdate')).getDate() - 7))
     }
@@ -74,9 +70,9 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
                         fieldId: 'item',
                         line: i
                     })
-                    const normalizedItemText = (itemText || '').toLowerCase()
+                    const normalizedItem = (itemText || '').toLowerCase()
                     const matchedFullRateKey = Object.keys(fullRateItems).find(function (key) {
-                        return normalizedItemText.includes(key)
+                        return normalizedItem.includes(key)
                     })
                     const qty = nr.getSublistValue({
                         sublistId,
@@ -110,6 +106,14 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             itemType: itemType,
             item: itemId
         }
+    }
+
+    const clearance = {
+        1: 1, 2: 2,
+        7: 3, 9: 14, 15: 12,
+        14: 9, 13: 8,
+        cpvr: 10594,
+        scx: 6458
     }
 
     return {
@@ -156,7 +160,7 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
 
         crpo.setValue({
             fieldId: 'class',
-            value: ORDER_TYPE_CLASS[rec.orderType]
+            value: clearance[rec.orderType]
         })
 
         const crpoId = crpo.save()
@@ -178,7 +182,7 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
     function setPoHeader(crpo, nr, rec) {
         crpo.setValue({
             fieldId: 'entity',
-            value: 10594
+            value: clearance.cpvr
         })
         crpo.setValue({
             fieldId: 'custbody_ship_ref_so',
@@ -286,7 +290,7 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
     function setSalesOrderHeader(crso, nr, trans, ponum) {
         crso.setValue({
             fieldId: 'entity',
-            value: 6458
+            value: clearance.scx
         })
         crso.setValue({
             fieldId: 'otherrefnum',
