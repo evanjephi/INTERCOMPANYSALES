@@ -1,4 +1,4 @@
-# Intercompany Order Processing Automation - int_record_sync
+# Intercompany Order Processing Automation
 
 This workflow action script creates a purchase order from the triggering record and carries over the key header and line-item details needed for intercompany processing. It sets the vendor, links the source sales order, calculates the due date from the ship date, and copies each item line at 40% of the original rate.
 
