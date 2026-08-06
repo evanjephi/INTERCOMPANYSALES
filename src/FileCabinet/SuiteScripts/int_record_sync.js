@@ -3,13 +3,12 @@
  * @NScriptType WorkflowActionScript
  */
 
-define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime, log, search) {
+define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
     function getDueDate(nr) {
         return new Date(new Date(nr.getValue('shipdate')).setDate(new Date(nr.getValue('shipdate')).getDate() - 7))
     }
 
     function internalTrade(context) {
-        const rt = runtime.getCurrentScript()
         const nr = context.newRecord
         const transaction = currentTransaction(nr)
         let crpoId
@@ -31,7 +30,6 @@ define(['N/record', 'N/runtime', 'N/log', 'N/search'], function (record, runtime
             })
             return
         }
-        log.debug('Remaining limit', rt.getRemainingUsage())
     }
 
     const currentTransaction = (nr) => {
