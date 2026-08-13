@@ -278,8 +278,12 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
                 id: nr.id,
                 values: {
                     custbody_ic_number: crsoId,
-                    custbody_intercompany_ref_so: 
-                    crso.getText('tranid')
+                    custbody_intercompany_ref_so:
+                        search.lookupFields({
+                            type: 'salesorder',
+                            id: crsoId,
+                            columns: ['tranid']
+                        }).tranid
                 }
             })
         }
