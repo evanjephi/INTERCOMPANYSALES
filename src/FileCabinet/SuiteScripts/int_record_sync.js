@@ -277,7 +277,9 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
                 type: nr.type,
                 id: nr.id,
                 values: {
-                    custbody_ic_number: crsoId
+                    custbody_ic_number: crsoId,
+                    custbody_intercompany_ref_so: 
+                    crso.getText('tranid')
                 }
             })
         }
@@ -301,6 +303,10 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
         crso.setValue({
             fieldId: 'custbody12',
             value: trans.icproject
+        })
+        crso.setValue({
+            fieldId: 'custbody_intercompany_ref_so',
+            value: nr.getText('tranid')
         })
     }
 })
