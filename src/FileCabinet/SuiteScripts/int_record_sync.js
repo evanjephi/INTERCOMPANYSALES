@@ -42,6 +42,8 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
             terms: nr.getValue('terms'),
             orderType: nr.getValue('ordertype'),
             icproject: nr.getText('custbody_viso_project'),
+            cpvr: !nr.getValue('custbody_ic_vendor') ? 10594 : nr.getValue('custbody_ic_vendor'),
+            scx: !nr.getValue('custbody_ic_customer') ? 6458 : nr.getValue('custbody_ic_customer'),
             resalePct: !nr.getValue('custbody_intercomp_resale_pct') ? .4 : nr.getValue('custbody_intercomp_resale_pct'),
             items: (crpo, multiplier, submitIntercompanyOrder = false) => {
                 const sublistId = 'item'
@@ -110,8 +112,8 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
         1: 1, 2: 2,
         7: 3, 9: 14, 15: 12,
         14: 9, 13: 8,
-        cpvr: 10594,
-        scx: 6458
+        //cpvr: currentTransaction().cpvr,
+        //scx: currentTransaction().scx
     }
 
     return {
@@ -180,7 +182,7 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
     function setPoHeader(crpo, nr, rec) {
         crpo.setValue({
             fieldId: 'entity',
-            value: clearance.cpvr
+            value: rec.cpvr
         })
         crpo.setValue({
             fieldId: 'custbody_ship_ref_so',
@@ -198,6 +200,7 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
             fieldId: 'custbody_viso_project',
             value: rec.project
         })
+        log.debug('requ', rec.requester)
         crpo.setValue({
             fieldId: 'custbodyrequestedby',
             value: rec.requester
@@ -294,7 +297,7 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
     function setSalesOrderHeader(crso, nr, trans, ponum) {
         crso.setValue({
             fieldId: 'entity',
-            value: clearance.scx
+            value: trans.scx
         })
         crso.setValue({
             fieldId: 'otherrefnum',
