@@ -181,6 +181,10 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
 
     function setPoHeader(crpo, nr, rec) {
         crpo.setValue({
+            fieldId: 'customform',
+            value: 270
+        })
+        crpo.setValue({
             fieldId: 'entity',
             value: rec.cpvr
         })
@@ -317,4 +321,3 @@ define(['N/record', 'N/log', 'N/search'], function (record, log, search) {
         })
     }
 })
-
