@@ -41,9 +41,7 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
             terms: nr.getValue('terms'),
             orderType: nr.getValue('ordertype'),
             icproject: nr.getText('custbody_viso_project'),
-            cpvr: !nr.getValue('custbody_ic_vendor') ? 10594 : nr.getValue('custbody_ic_vendor'),
-            scx: !nr.getValue('custbody_ic_customer') ? 6458 : nr.getValue('custbody_ic_customer'),
-            resalePct: !nr.getValue('custbody_intercomp_resale_pct') ? .4 : nr.getValue('custbody_intercomp_resale_pct'),
+            resalePct: !nr.getValue('custbody_intercomp_resale_pct') ? .4 : nr.getValue('custbody_intercomp_resale_pct') / 100,
             items: (crpo, multiplier, submitIntercompanyOrder = false) => {
                 const sublistId = 'item'
                 const fullRateItems = { freight: 5667, rush: 5673 }
@@ -98,9 +96,13 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'item', value: targetItemId })
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'quantity', value: qty })
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'rate', value: targetRate })
+                    crpo.type === 'salesorder' && 
+                    crpo.setCurrentSublistValue({ sublistId, fieldId: 'custcol_release_order', value: true })
                     crpo.commitLine({ sublistId })
                 }
             },
+            cpvr:10594,
+            scx: 6458,
             itemType: itemType,
             item: itemId
         }
@@ -115,7 +117,7 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
         //scx: currentTransaction().scx
     }
 
- 
+
     function intercompanyIntiator(nr, rec) {
         const linkedPoId = nr.getValue('custbody_linked_po')
         let crpo
@@ -149,6 +151,14 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
             clearSublistLines(crpo, 'item')
         }
         rec.items(crpo, rec.resalePct, true)
+        // crpo.setValue({
+        //     fieldId: 'custbody15',
+        //     value: true
+        // })
+        crpo.setValue({
+            fieldId: 'approvalstatus',
+            value: 2
+        })
         crpo.setValue({
             fieldId: 'class',
             value: clearance[rec.orderType]
@@ -298,6 +308,42 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
         crso.setValue({
             fieldId: 'custbody_intercompany_ref_so',
             value: nr.getText('tranid')
+        })
+        crso.setValue({
+            fieldId: 'custbody13',
+            value: nr.getValue('custbody13')
+        })
+        crso.setValue({
+            fieldId: 'custbody_viso_so_memo',
+            value: nr.getText('custbody_viso_so_memo')
+        })
+        crso.setValue({
+            fieldId: 'salesrep',
+            value: 6351
+        })
+        crso.setValue({
+            fieldId: 'custbody_viso_shipping_carrier',
+            value: 18
+        })
+        crso.setValue({
+            fieldId: 'shipmethod',
+            value: 3
+        })
+        crso.setValue({
+            fieldId: 'custbody_viso_email',
+            value: nr.getValue('custbody_viso_email')
+        })
+        crso.setValue({
+            fieldId: 'custbody_viso_phone',
+            value: nr.getValue('custbody_viso_phone')
+        })
+        crso.setValue({
+            fieldId: 'terms',
+            value: 2
+        })
+        crso.setValue({
+            fieldId: 'custbody_release_order',
+            value: true
         })
     }
 
