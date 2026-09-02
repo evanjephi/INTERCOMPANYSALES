@@ -2,6 +2,7 @@
  * @NApiVersion 2.1
  * @NScriptType UserEventScript
  */
+
 define(['N/ui/serverWidget', 'N/url', 'N/runtime', 'N/search', 'N/log', 'N/record'], function (w, x, e, y, log, z) {
     function beforeLoad(context) {
         const validateCrossSubOrders = (nr, e) => {
@@ -14,16 +15,18 @@ define(['N/ui/serverWidget', 'N/url', 'N/runtime', 'N/search', 'N/log', 'N/recor
             const r = parseInt(er[cd.r], 10);
             const t = cd.t;
             const c = cd.c;
-            const s = y.create({
-                type: z.Type.EMPLOYEE,
-                filter: ['internalid', 'anyof', u],
-                columns: ['custentity_ico_access']
-            }).custentity_ico_access;
-            return { tms, tmq, ro, u, r, t, c, ac: cd.ac, s, f: cd.ac[2] };
+            let s
+            if (r === cd.ac[0] || r === cd.ac[1]) {
+                s = z.load({
+                    type: cd.e,
+                    id: u
+                }).getValue('custentity_auth_access');
+            }
+            return { tms, tmq, ro, u, r, t, c, ac: cd.ac, s, f: cd.ac[2], p: cd.p };
         }
         if (context.type === context.UserEventType.VIEW) {
             const nr = context.newRecord;
-            const { tms, tmq, ro, u, r, t, c, ac, s, f } = validateCrossSubOrders(nr, e);
+            const { tms, tmq, ro, u, r, t, c, ac, s, f, p } = validateCrossSubOrders(nr, e);
             const form = context.form
             form.clientScriptFileId = f;
 
@@ -35,7 +38,15 @@ define(['N/ui/serverWidget', 'N/url', 'N/runtime', 'N/search', 'N/log', 'N/recor
                 })
                 log.debug('Estimating Criteria Met', 'SO ' + nr.id)
             }
-            log.debug('Validation Result', { ro, s, f });
+            if (u === p[0]) {
+               form.addButton({
+                   id: 'custpage_prod_release',
+                   label: 'Prod. Release',
+                   functionName: 'prodRelease'
+               });
+               log.debug('prod release Result', { ro, s, f, p });
+
+            }
 
             if (s && ro && ac.includes(r)) {
                 form.addButton({
@@ -43,6 +54,8 @@ define(['N/ui/serverWidget', 'N/url', 'N/runtime', 'N/search', 'N/log', 'N/recor
                     label: 'Generate ICO',
                     functionName: 'crossSubOrders'
                 })
+               log.debug('Validation Result', { ro, s, f, p });
+
             }
             // submitRevision(nr, form, url)
         }
@@ -59,7 +72,7 @@ define(['N/ui/serverWidget', 'N/url', 'N/runtime', 'N/search', 'N/log', 'N/recor
         t: [13, 1],
         c: [8, 1],
         ac: [3, 1653, 54208],
-
+        p: [6582]
     }
 
     // function submitRevision(nr, form, url) {
