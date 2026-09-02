@@ -6,12 +6,41 @@ define(['N/task', 'N/log', 'N/record'], function (task, log, record) {
 
     const MR_SCRIPT_ID = 'customscript_ic_trade_mr'
     const IC_TRADE_TURNS = [
-        'customdeploy_ic_trade_mr'
+        'customdeploy_ic_trade_mr',
+        'customdeploy2',
+        'customdeploy3',
+        'customdeploy4',
+        'customdeploy5'
     ]
 
     function getTurn(turns) {
         const idx = new Date().getTime() % turns.length;
         return turns[idx];
+    }
+
+    // tries each deployment in turn, skipping any that report MAP_REDUCE_ALREADY_RUNNING
+    function submitToFreeDeployment(turns, params) {
+        let lastError;
+        for (const depId of turns) {
+            try {
+                const mrTask = task.create({
+                    taskType: task.TaskType.MAP_REDUCE,
+                    scriptId: MR_SCRIPT_ID,
+                    deploymentId: depId,
+                    params: params
+                });
+                const taskId = mrTask.submit();
+                return { taskId, depId };
+            } catch (e) {
+                if (e.name === 'MAP_REDUCE_ALREADY_RUNNING') {
+                    log.debug('Deployment busy, trying next', depId);
+                    lastError = e;
+                    continue;
+                }
+                throw e;
+            }
+        }
+        throw lastError || new Error('No deployments available');
     }
 
     function sleep(ms) {
@@ -45,18 +74,10 @@ define(['N/task', 'N/log', 'N/record'], function (task, log, record) {
         }
 
         try {
-            const depId = getTurn(IC_TRADE_TURNS);
-            const mrTask = task.create({
-                taskType: task.TaskType.MAP_REDUCE,
-                scriptId: MR_SCRIPT_ID,
-                deploymentId: depId,
-                params: {
-                    custscript_ic_mr_rec_id: soid,
-                    custscript_ic_mr_rec_type: type
-                }
+            const { taskId, depId } = submitToFreeDeployment(IC_TRADE_TURNS, {
+                custscript_ic_mr_rec_id: soid,
+                custscript_ic_mr_rec_type: type
             });
-
-            const taskId = mrTask.submit();
             log.audit('Submitted M/R', { taskId, depId });
 
             waitForTask(taskId);
