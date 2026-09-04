@@ -44,7 +44,12 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
             resalePct: !nr.getValue('custbody_intercomp_resale_pct') ? .4 : nr.getValue('custbody_intercomp_resale_pct') / 100,
             items: (crpo, multiplier, submitIntercompanyOrder = false) => {
                 const sublistId = 'item'
-                const fullRateItems = { freight: 5667, rush: 5673 }
+                //const fullRateItems = { freight: 5667, rush: 5673, fee:14156, Miscellaneous: 5670, instal: 5668 }
+                const fullRateItems = [
+                    { 17412: 5667, 17408: 5673, 17413: 5668, 5668: 5668 },
+                    { 36750: 14156, 17406: 5670 }
+                ]
+
                 const len = nr.getLineCount({ sublistId })
                 for (let i = 0; i < len; i++) {
                     const originalRate = nr.getSublistValue({
@@ -62,15 +67,22 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
                         fieldId: 'itemtype',
                         line: i
                     })
-                    const itemText = nr.getSublistText({
+                    const desc = nr.getSublistValue({
                         sublistId,
-                        fieldId: 'item',
+                        fieldId: 'description',
                         line: i
                     })
-                    const normalizedItem = (itemText || '').toLowerCase()
-                    const matchedFullRateKey = Object.keys(fullRateItems).find(function (key) {
-                        return normalizedItem.includes(key)
-                    })
+                    // const itemText = nr.getSublistText({
+                    //     sublistId,
+                    //     fieldId: 'item',
+                    //     line: i
+                    // })
+                    // const normalizedItem = (itemText || '').toLowerCase()
+                    // const matchedFullRateKey = Object.keys(fullRateItems).find(function (key) {
+                    //     return normalizedItem.includes(key)
+                    // })
+                    // const matchedFullRateKey = fullRateItems[0].hasOwnProperty(itemId) ? itemId : null;
+
                     const qty = nr.getSublistValue({
                         sublistId,
                         fieldId: 'quantity',
@@ -86,22 +98,42 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
                             }
                         })
                     }
-                    const targetItemId = matchedFullRateKey && crpo.type === 'salesorder'
-                        ? fullRateItems[matchedFullRateKey]
-                        : itemId
-                    const targetRate = matchedFullRateKey
+                    // const targetItemId = matchedFullRateKey && crpo.type === 'salesorder'
+                    //     ? fullRateItems[0][matchedFullRateKey]
+                    //     : itemId
+                    // const targetRate = matchedFullRateKey
+                    //     ? originalRate
+                    //     : originalRate * multiplier
+
+                    const isObj1Match = fullRateItems[0].hasOwnProperty(itemId);
+                    const isObj2Match = fullRateItems[1].hasOwnProperty(itemId);
+                    // 1. Determine Target Item ID (Checks Obj1 first, then Obj2, then defaults)
+                    let targetItemId = itemId;
+                    if (crpo.type === 'salesorder') {
+                        if (isObj1Match) {
+                            targetItemId = fullRateItems[0][itemId];
+                        } else if (isObj2Match) {
+                            targetItemId = fullRateItems[1][itemId];
+                        }
+                    }
+
+                    // 2. Determine Target Rate (Obj1 stays original; Obj2 and unmatched get multiplied)
+                    const targetRate = isObj1Match
                         ? originalRate
-                        : originalRate * multiplier
+                        : originalRate * multiplier;
+
+
                     crpo.selectNewLine({ sublistId });
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'item', value: targetItemId })
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'quantity', value: qty })
                     crpo.setCurrentSublistValue({ sublistId, fieldId: 'rate', value: targetRate })
-                    crpo.type === 'salesorder' && 
-                    crpo.setCurrentSublistValue({ sublistId, fieldId: 'custcol_release_order', value: true })
+                    crpo.setCurrentSublistValue({ sublistId, fieldId: 'description', value: desc })
+                    crpo.type === 'salesorder' &&
+                        crpo.setCurrentSublistValue({ sublistId, fieldId: 'custcol_release_order', value: true })
                     crpo.commitLine({ sublistId })
                 }
-            },
-            cpvr:10594,
+            },            
+            cpvr: 10594,
             scx: 6458,
             itemType: itemType,
             item: itemId
@@ -112,9 +144,7 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
     const clearance = {
         1: 1, 2: 2,
         7: 3, 9: 14, 15: 12,
-        14: 9, 13: 8,
-        //cpvr: currentTransaction().cpvr,
-        //scx: currentTransaction().scx
+        14: 9, 13: 8
     }
 
 
@@ -173,7 +203,6 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
                 }
             })
         }
-        log.debug('Intercompany PO upsert complete', 'POID: ' + crpoId)
         return crpoId
     }
 
@@ -202,7 +231,6 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
             fieldId: 'custbody_viso_project',
             value: rec.project
         })
-        log.debug('requ', rec.requester)
         crpo.setValue({
             fieldId: 'custbodyrequestedby',
             value: rec.requester
@@ -213,7 +241,7 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
         })
         crpo.setValue({
             fieldId: 'terms',
-            value: rec.terms
+            value: 2
         })
     }
 
@@ -230,7 +258,6 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
 
     function intercompanyOrder(nr, trans, otherref) {
         const icNumber = Number(nr.getValue('custbody_ic_number'))
-        log.debug('icNumber', icNumber)
         let crso
         let isNew = !icNumber
         if (icNumber) {
@@ -262,7 +289,7 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
             id: otherref,
             columns: ['tranid']
         }).tranid
-        setSalesOrderHeader(crso, nr, trans, ponum)
+        setSOHeader(crso, nr, trans, ponum)
         if (!isNew) {
             clearSublistLines(crso, 'item')
         }
@@ -285,10 +312,9 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
                 }
             })
         }
-        log.debug('Intercompany SO upsert complete', 'SOID: ' + crsoId)
     }
 
-    function setSalesOrderHeader(crso, nr, trans, ponum) {
+    function setSOHeader(crso, nr, trans, ponum) {
         crso.setValue({
             fieldId: 'entity',
             value: trans.scx
@@ -316,6 +342,10 @@ define(['N/record', 'N/log', 'N/search', 'N/runtime'], function (record, log, se
         crso.setValue({
             fieldId: 'custbody_viso_so_memo',
             value: nr.getText('custbody_viso_so_memo')
+        })
+        crso.setValue({
+            fieldId: 'location',
+            value: 1
         })
         crso.setValue({
             fieldId: 'salesrep',
